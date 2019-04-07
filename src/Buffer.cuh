@@ -5,6 +5,7 @@
 #include <cuda_device_runtime_api.h>
 #include <device_launch_parameters.h>
 #include <cassert>
+#include <vector>
 
 namespace cudann
 {
@@ -303,7 +304,27 @@ namespace cudann
 
 
 		template <class begin_it, class end_it>
-		void init_host()
+		void fill_host(begin_it it, end_it const& end)
+		{
+			assert(host_loaded());
+			uint i = 0;
+			while (it != end && i < m_size)
+			{
+				h_data[i] = *it;
+				++it;
+				++i;
+			}
+
+			if (!MUTE && it != end)
+			{
+				std::cout << "Warning, The collection size to fill the host buffer exeeds the size of the buffer, discarding elements!, this: " << this << std::endl;
+			}
+		}
+
+		void fill_host(std::vector<T> const& vec)
+		{
+			fill_host(vec.cbegin(), vec.cend());
+		}
 		
 	};
 }

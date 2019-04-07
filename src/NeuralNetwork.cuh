@@ -19,11 +19,11 @@ namespace cudann
 	template <class floot, class uint = unsigned int, bool MUTE = false>
 	class NeuralNetwork
 	{
-	protected:
-		
+	public:
 		using Bufferf = Buffer<floot, uint, MUTE>;
 		using Compactf = Compact<floot, uint>;
 
+	protected:
 
 		class Layer
 		{
@@ -32,7 +32,7 @@ namespace cudann
 			//the size of each buffer this vector is the number of neurons + 1 (bias)
 			//each buffer represents the weight of the inputs of the neurons
 			std::vector<Bufferf> m_weights;
-			Bufferf m_result;
+			mutable Bufferf m_result;
 
 		public:
 
@@ -114,7 +114,7 @@ namespace cudann
 				Compactf cmpct = m_result.host_compact();
 				for (uint i = 0; i < cmpct.size(); ++i)
 				{
-					Bufferf & weigths = m_weights[i];
+					const Bufferf & weigths = m_weights[i];
 					const Compactf weight_compact = weigths.host_compact();
 					
 					floot res = 0;
@@ -126,6 +126,9 @@ namespace cudann
 					assert(j < weight_compact.size());
 					res += weight_compact[j];
 					
+					//apply the sigmoid
+					res = floot(1) / (floot(1) + exp(-res));
+
 					cmpct[i] = res;
 				}
 			}
@@ -233,8 +236,7 @@ namespace cudann
 
 		const Bufferf & predict_host(Bufferf const& input)const
 		{
-			uint i = 0;
-			Bufferf * layer_input = &input;
+			const Bufferf * layer_input = &input;
 			for (const Layer & layer : m_layers)
 			{
 				layer.compute_host(layer_input);
