@@ -266,11 +266,12 @@ namespace cudann
 					Bufferf const& truth = p.second;
 					predict_host(example);
 
-					Layer & output = m_layers.back();
+					Layer * output = &m_layers.back();
 
+					//the small delta
 					Bufferf * error = &output.m_error;
 
-					error->apply_function_host(truth, output.m_result, std::minus<floot>());
+					//error->apply_function_host(truth, output.m_result, std::minus<floot>());
 
 					for (int layer_id = m_layers.size() - 1; layer_id >= 0; --layer_id)
 					{
@@ -278,6 +279,7 @@ namespace cudann
 						if(layer_id == m_layers.size() - 1)
 						{
 							//output layer
+							
 						}
 						else
 						{
