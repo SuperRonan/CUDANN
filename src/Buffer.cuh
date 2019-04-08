@@ -6,6 +6,8 @@
 #include <device_launch_parameters.h>
 #include <cassert>
 #include <vector>
+#include <algorithm>
+#include <functional>
 
 namespace cudann
 {
@@ -73,18 +75,20 @@ namespace cudann
 	{
 	protected:
 
+		using Cmpct = Compact<T, uint>;
+
 		uint m_size;
 		
 		T * h_data;
 		T * d_data;
 
 		
-
+		
 
 
 	public:
 
-		Buffer(Buffer const& other):
+		Buffer(Buffer const& other) :
 			m_size(other.m_size)
 		{
 			std::cerr << "copy!" << std::endl;
@@ -146,12 +150,12 @@ namespace cudann
 			return d_data;
 		}
 
-		const Compact<T, uint> host_compact()const
+		const Cmpct host_compact()const
 		{
 			return { m_size, h_data };
 		}
 
-		const Compact<T, uint> device_compact()const
+		const Cmpct device_compact()const
 		{
 			return { m_size, d_data };
 		}
@@ -324,6 +328,31 @@ namespace cudann
 		void fill_host(std::vector<T> const& vec)
 		{
 			fill_host(vec.cbegin(), vec.cend());
+		}
+
+		void apply_function_host(Buffer const& other)
+		{
+			assert(host_loaded());
+			assert(other.host_loaded());
+		}
+
+		template <class BinaryOperator>
+		void apply_function_host(Buffer const& a, Buffer const& b, BinaryOperator const& func)
+		{
+			assert(host_loaded());
+			assert(a.host_loaded());
+			assert(b.host_loaded());
+			assert(m_size <= a.size());
+			assert(m_size <= b.size());
+			//TODO OMP/TBB
+
+			const Cmpct aa = a.host_compact(), bb = b.host_compact();
+			
+			//std::transform(aa.cbegin(), aa.cend(), bb.cbegin(), bb.cend(), h_data, func);
+			for (uint i = 0; i < size(); ++i)
+			{
+				h_data[i] = func(aa[i], bb[i]);
+			}
 		}
 		
 	};

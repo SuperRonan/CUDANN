@@ -33,11 +33,13 @@ namespace cudann
 			//each buffer represents the weight of the inputs of the neurons
 			std::vector<Bufferf> m_weights;
 			mutable Bufferf m_result;
+			Bufferf m_error;
 
 		public:
 
 			Layer(uint number_of_neurons, uint prev_layer_size):
-				m_result(number_of_neurons)
+				m_result(number_of_neurons),
+				m_error(number_of_neurons)
 			{
 				m_weights.reserve(number_of_neurons);
 				for (uint i = 0; i < number_of_neurons; ++i)
@@ -54,6 +56,7 @@ namespace cudann
 					buffer.malloc_host();
 				}
 				m_result.malloc_host();
+				m_error.malloc_host();
 			}
 
 			void init_device()
@@ -63,6 +66,7 @@ namespace cudann
 					buffer.malloc_device();
 				}
 				m_result.malloc_device();
+				m_error.malloc_device();
 			}
 
 			//implicitly on the host
@@ -87,7 +91,8 @@ namespace cudann
 					assert(buffer.host_loaded());
 					buffer.send_host_to_device();
 				}
-				m_result.send_device_to_host();
+				m_result.send_host_to_device();
+				m_error.send_host_to_device();
 			}
 
 			void print_weights(bool host = true, std::ostream & out=std::cout)
@@ -112,10 +117,13 @@ namespace cudann
 			{
 				const Compactf compact_in = input->host_compact();
 				Compactf cmpct = m_result.host_compact();
+				//for each neuron (TODO multi thread)
 				for (uint i = 0; i < cmpct.size(); ++i)
 				{
 					const Bufferf & weigths = m_weights[i];
 					const Compactf weight_compact = weigths.host_compact();
+
+					assert(weigths.size() == input->size() + 1);
 					
 					floot res = 0;
 					uint j = 0;
@@ -150,7 +158,7 @@ namespace cudann
 		//////////////////////////////////////////////////////////
 		// structure represent the general structure of the NN
 		// {12, 7, 5, 3} means:
-		//	-12 perceptrons
+		//	- 12 perceptrons
 		//	- two hidden layers: one of 7 neurons and one of 5
 		//	- the output layer of 3 neurons
 		//
@@ -236,6 +244,7 @@ namespace cudann
 
 		const Bufferf & predict_host(Bufferf const& input)const
 		{
+			assert(input.size() == m_struct.front());
 			const Bufferf * layer_input = &input;
 			for (const Layer & layer : m_layers)
 			{
@@ -244,6 +253,42 @@ namespace cudann
 			}
 
 			return m_layers.back().m_result;
+		}
+
+
+		void fit_host(std::vector<std::pair<Bufferf, Bufferf>> const& training_set, floot alpha=0.5, const uint number_of_pass=1)
+		{
+			for (uint pass = 0; pass < number_of_pass; ++pass)
+			{
+				for (std::pair<Bufferf, Bufferf> const& p : training_set)
+				{
+					Bufferf const& example = p.first;
+					Bufferf const& truth = p.second;
+					predict_host(example);
+
+					Layer & output = m_layers.back();
+
+					Bufferf * error = &output.m_error;
+
+					error->apply_function_host(truth, output.m_result, std::minus<floot>());
+
+					for (int layer_id = m_layers.size() - 1; layer_id >= 0; --layer_id)
+					{
+						Layer & layer = m_layers[layer_id];
+						if(layer_id == m_layers.size() - 1)
+						{
+							//output layer
+						}
+						else
+						{
+							for (uint neuron_id = 0; neuron_id < m_struct[layer_id + 1]; ++neuron_id)
+							{
+
+							}
+						}
+					}
+				}
+			}
 		}
 
 	};
