@@ -279,7 +279,12 @@ namespace cudann
 						if(layer_id == m_layers.size() - 1)
 						{
 							//output layer
-							
+							for (uint neuron_id = 0; neuron_id < m_struct[layer_id + 1]; ++neuron_id)
+							{
+								floot u = truth.host_compact()[neuron_id];
+								floot y = layer.m_result.host_compact()[neuron_id];
+								floot small_delta = (u - y) * y * (1 - y);
+							}
 						}
 						else
 						{
